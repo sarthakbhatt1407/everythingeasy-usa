@@ -1,56 +1,56 @@
 // Load navigation components dynamically
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener("DOMContentLoaded", function () {
   loadNavbar();
   loadFooter();
 });
 
 function loadNavbar() {
-  fetch('navbar.html')
-    .then(response => response.text())
-    .then(data => {
-      const navContainer = document.getElementById('navbar-container');
+  fetch("navbar.html")
+    .then((response) => response.text())
+    .then((data) => {
+      const navContainer = document.getElementById("navbar-container");
       if (navContainer) {
         navContainer.innerHTML = data;
         initNavbarScroll();
       }
     })
-    .catch(error => console.log('Error loading navbar:', error));
+    .catch((error) => console.log("Error loading navbar:", error));
 }
 
 function loadFooter() {
-  fetch('footer.html')
-    .then(response => response.text())
-    .then(data => {
-      const footerContainer = document.getElementById('footer-container');
+  fetch("footer.html")
+    .then((response) => response.text())
+    .then((data) => {
+      const footerContainer = document.getElementById("footer-container");
       if (footerContainer) {
         footerContainer.innerHTML = data;
       }
     })
-    .catch(error => console.log('Error loading footer:', error));
+    .catch((error) => console.log("Error loading footer:", error));
 }
 
 function initNavbarScroll() {
-  const navbar = document.getElementById('navbar');
+  const navbar = document.getElementById("navbar");
   if (navbar) {
-    window.addEventListener('scroll', function () {
+    window.addEventListener("scroll", function () {
       if (window.scrollY > 50) {
-        navbar.classList.add('shadow');
+        navbar.classList.add("shadow");
       } else {
-        navbar.classList.remove('shadow');
+        navbar.classList.remove("shadow");
       }
     });
   }
 }
 
 // Smooth scrolling for anchor links
-document.addEventListener('click', function(e) {
+document.addEventListener("click", function (e) {
   const link = e.target.closest('a[href^="#"]');
   if (link) {
-    const targetId = link.getAttribute('href').substring(1);
+    const targetId = link.getAttribute("href").substring(1);
     const targetElement = document.getElementById(targetId);
     if (targetElement) {
       e.preventDefault();
-      targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      targetElement.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }
 });
