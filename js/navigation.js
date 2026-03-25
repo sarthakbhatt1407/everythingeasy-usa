@@ -12,9 +12,31 @@ function loadNavbar() {
       if (navContainer) {
         navContainer.innerHTML = data;
         initNavbarScroll();
+        setActiveNavLink();
       }
     })
     .catch((error) => console.log("Error loading navbar:", error));
+}
+
+function setActiveNavLink() {
+  const currentPagePath = window.location.pathname;
+  const currentPage = currentPagePath.split("/").pop();
+  const navLinks = document.querySelectorAll(".navbar-nav .nav-link:not(.btn)");
+
+  navLinks.forEach((link) => {
+    link.classList.remove("active");
+    const href = link.getAttribute("href");
+
+    // Match by filename (handles index.html as root)
+    if (
+      href &&
+      (href === currentPage ||
+        (currentPage === "" && href === "index.html") ||
+        (!currentPage && href === "index.html"))
+    ) {
+      link.classList.add("active");
+    }
+  });
 }
 
 function loadFooter() {

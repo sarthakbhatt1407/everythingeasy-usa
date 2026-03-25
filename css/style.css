@@ -5,7 +5,7 @@
   --secondary-color: #764ba2;
   --dark-color: #1a1a2e;
   --light-color: #f8f9fa;
-  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-primary: #004da6;
 }
 
 * {
@@ -106,19 +106,13 @@ body {
   position: relative;
 }
 
-.navbar-nav .nav-link:hover,
-.navbar-nav .nav-link.active {
+.navbar-nav .nav-link:hover {
   color: var(--primary-color) !important;
 }
 
-.navbar-nav .nav-link.active::after {
-  content: "";
-  position: absolute;
-  bottom: -5px;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--primary-color);
+.navbar-nav .nav-link.active {
+  color: #000 !important;
+  font-weight: 700;
 }
 
 /* Hero Section */
@@ -528,12 +522,25 @@ footer .fa-heart {
 @media (max-width: 991px) {
   .navbar-nav {
     text-align: center;
-    padding-top: 20px;
+    padding-top: 15px;
+    padding-bottom: 10px;
   }
 
   .navbar-nav .nav-link {
-    padding: 10px 0;
+    padding: 12px 0;
     border-bottom: 1px solid #e0e0e0;
+    font-weight: 500;
+  }
+
+  .navbar-nav .nav-item:last-child {
+    padding-top: 10px;
+    border-top: 1px solid #e0e0e0;
+    margin-top: 10px;
+  }
+
+  .navbar-nav .btn {
+    width: 100%;
+    margin-left: 0 !important;
   }
 
   .hero-wrapper {
@@ -644,13 +651,54 @@ footer .fa-heart {
 }
 
 @media (max-width: 576px) {
-  .hero-section {
-    min-height: 400px !important;
-    padding: 20px 0 !important;
+  .navbar {
+    padding: 10px 0;
   }
 
   .navbar-brand {
-    font-size: 20px;
+    font-size: 18px;
+  }
+
+  .navbar-brand img {
+    height: 35px !important;
+    margin-right: 8px !important;
+  }
+
+  .navbar-brand span {
+    white-space: nowrap;
+  }
+
+  .navbar-toggler {
+    padding: 0.2rem 0.5rem;
+  }
+
+  .navbar-nav {
+    text-align: center;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .navbar-nav .nav-link {
+    padding: 10px 0;
+    border-bottom: none;
+    font-size: 14px;
+  }
+
+  .navbar-nav .nav-item:last-child {
+    padding-top: 8px;
+    border-top: 1px solid #e0e0e0;
+    margin-top: 8px;
+  }
+
+  .navbar-nav .btn {
+    width: auto;
+    padding: 8px 20px !important;
+    font-size: 13px !important;
+  }
+
+  .hero-section {
+    min-height: 400px !important;
+    padding: 20px 0 !important;
   }
 
   .hero-title {
@@ -737,6 +785,11 @@ html {
   padding: 120px 0 60px;
   position: relative;
   overflow: hidden;
+}
+.btn-primary {
+  background-color: #004da6 !important;
+  border-color: #004da6 !important;
+  color: white !important;
 }
 
 .page-header::before {
@@ -882,7 +935,7 @@ html {
 
 .core-service-card {
   background: white;
-  padding: 20px;
+  padding: 35px;
   border-radius: 12px;
   box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
@@ -907,8 +960,8 @@ html {
 }
 
 .service-icon-large {
-  width: 60px;
-  height: 60px;
+  width: 80px;
+  height: 80px;
   background: linear-gradient(
     135deg,
     rgba(0, 102, 204, 0.1),
@@ -918,8 +971,8 @@ html {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 15px;
-  font-size: 1.8rem;
+  margin-bottom: 25px;
+  font-size: 2.2rem;
   color: #0066cc;
   transition: all 0.3s ease;
 }
@@ -931,17 +984,17 @@ html {
 }
 
 .core-service-card h3 {
-  font-size: 1.2rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: #333;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .core-service-card > p {
-  font-size: 0.9rem;
+  font-size: 1rem;
   color: #666;
-  line-height: 1.6;
-  margin-bottom: 15px;
+  line-height: 1.7;
+  margin-bottom: 25px;
   flex-grow: 1;
 }
 
@@ -952,20 +1005,20 @@ html {
 }
 
 .service-checklist li {
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   color: #666;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .service-checklist li i {
   color: #0066cc;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   flex-shrink: 0;
   font-weight: bold;
-  width: 16px;
+  width: 20px;
   text-align: center;
 }
 
@@ -1328,17 +1381,17 @@ html {
   }
 
   .core-service-card {
-    padding: 18px;
+    padding: 30px;
   }
 
   .core-service-card h3 {
-    font-size: 1.1rem;
+    font-size: 1.3rem;
   }
 
   .service-icon-large {
-    width: 55px;
-    height: 55px;
-    font-size: 1.6rem;
+    width: 70px;
+    height: 70px;
+    font-size: 1.8rem;
   }
 }
 
@@ -1376,23 +1429,21 @@ html {
   }
 
   .core-service-card {
-    padding: 15px;
+    padding: 20px;
   }
 
   .core-service-card h3 {
-    font-size: 1rem;
+    font-size: 1.1rem;
   }
 
   .service-icon-large {
-    width: 50px;
-    height: 50px;
-    font-size: 1.4rem;
-    margin-bottom: 12px;
+    width: 60px;
+    height: 60px;
+    font-size: 1.5rem;
   }
 
   .service-checklist li {
-    font-size: 0.8rem;
-    margin-bottom: 6px;
+    font-size: 0.9rem;
   }
 
   .feature-icon {

@@ -74,7 +74,7 @@
 
   <body>
     <div id="navbar-container"></div>
-
+    <script src="js/navigation.js"></script>
     <!-- Blog Detail Section -->
     <section class="py-5" style="padding-top: 120px !important">
       <div class="container">
@@ -295,10 +295,32 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
     <script>
+      function setActiveNavLink() {
+        const currentPagePath = window.location.pathname;
+        const currentPage = currentPagePath.split("/").pop();
+        const navLinks = document.querySelectorAll(
+          ".navbar-nav .nav-link:not(.btn)",
+        );
+
+        navLinks.forEach((link) => {
+          link.classList.remove("active");
+          const href = link.getAttribute("href");
+          if (
+            href &&
+            (href === currentPage ||
+              (currentPage === "" && href === "index.html") ||
+              (!currentPage && href === "index.html"))
+          ) {
+            link.classList.add("active");
+          }
+        });
+      }
+
       fetch("navbar.html")
         .then((r) => r.text())
         .then((html) => {
           document.getElementById("navbar-container").innerHTML = html;
+          setActiveNavLink();
         });
 
       fetch("footer.html")
