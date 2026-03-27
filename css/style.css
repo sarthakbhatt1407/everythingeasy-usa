@@ -1,8 +1,8 @@
 /* Everything Easy USA - IT Solutions Company Styles */
 
 :root {
-  --primary-color: #667eea;
-  --secondary-color: #764ba2;
+  --primary-color: #004da6;
+  --secondary-color: #004da6;
   --dark-color: #1a1a2e;
   --light-color: #f8f9fa;
   --gradient-primary: #004da6;
@@ -131,6 +131,9 @@ body {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 50%;
   z-index: 0;
+}
+.navbar-brand.text-primary {
+  color: #004da6 !important;
 }
 
 /* Form Styles */
