@@ -1,3 +1,7 @@
+<?php
+require __DIR__ . '/config.php';
+$companyInfo = getCompanyInfo();
+?>
 <!doctype html>
 <html lang="en">
   <head>
@@ -35,8 +39,8 @@
   </head>
 
   <body>
-    <div id="navbar-container"></div>
-    <script src="js/navigation.js"></script>
+    <?php include "navbar.php"; ?>
+    <!-- <script src="js/navigation.js"></script> -->
     <main style="margin-top: 30px">
       <!-- Page Header -->
       <section class="page-header">
@@ -51,7 +55,7 @@
               <nav aria-label="breadcrumb">
                 <ol class="breadcrumb justify-content-center">
                   <li class="breadcrumb-item">
-                    <a href="index.html">Home</a>
+                    <a href="index.php">Home</a>
                   </li>
                   <li class="breadcrumb-item active" aria-current="page">
                     Services
@@ -390,7 +394,7 @@
                 Let's discuss how we can help your business through technology
               </p>
               <div class="cta-buttons">
-                <a href="index.html" class="cta-btn cta-btn-primary">
+                <a href="index.php" class="cta-btn cta-btn-primary">
                   <i class="fas fa-envelope me-2"></i>Get Free Quote
                 </a>
                 <a href="tel:+18443299832" class="cta-btn cta-btn-secondary">
@@ -402,7 +406,7 @@
         </div>
       </section>
 
-      <div id="footer-container"></div>
+     <?php include "footer.php"; ?>
     </main>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
@@ -420,22 +424,22 @@
           if (
             href &&
             (href === currentPage ||
-              (currentPage === "" && href === "index.html") ||
-              (!currentPage && href === "index.html"))
+              (currentPage === "" && href === "index.php") ||
+              (!currentPage && href === "index.php"))
           ) {
             link.classList.add("active");
           }
         });
       }
 
-      fetch("navbar.html")
+      fetch("navbar.php")
         .then((r) => r.text())
         .then((html) => {
           document.getElementById("navbar-container").innerHTML = html;
           setActiveNavLink();
         });
 
-      fetch("footer.html")
+      fetch("footer.php")
         .then((r) => r.text())
         .then((html) => {
           document.getElementById("footer-container").innerHTML = html;

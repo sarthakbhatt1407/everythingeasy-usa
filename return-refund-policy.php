@@ -1,3 +1,7 @@
+<?php
+require __DIR__ . '/config.php';
+$companyInfo = getCompanyInfo();
+?>
 <!doctype html>
 <html lang="en">
   <head>
@@ -20,8 +24,8 @@
   </head>
   <body>
     <!-- Navbar Container -->
-    <div id="navbar-container"></div>
-    <script src="js/navigation.js"></script>
+    <?php include "navbar.php"; ?>
+    <!-- <script src="js/navigation.js"></script> -->
 
     <main style="margin-top: 70px">
       <!-- Page Header -->
@@ -147,10 +151,10 @@
                 </p>
                 <p>
                   Email:
-                  <a href="mailto:info@everythingeasy.com"
-                    >info@everythingeasy.com</a
+                  <a href="mailto:<?= e($companyInfo['company_email'] ?? 'info@everythingeasy.com') ?>"
+                    ><?= e($companyInfo['company_email'] ?? 'info@everythingeasy.com') ?></a
                   ><br />
-                  Phone: <a href="tel:+18448327932">+1 (844) 832-7932</a>
+                  Phone: <a href="tel:<?= e($companyInfo['company_number'] ?? '+1 (844) EASY-WEB') ?>"><?= e($companyInfo['company_number'] ?? '+1 (844) EASY-WEB') ?></a>
                 </p>
               </div>
             </div>
@@ -160,7 +164,7 @@
     </main>
 
     <!-- Footer -->
-    <div id="footer-container"></div>
+   <?php include "footer.php"; ?>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
     <script>
       fetch("footer.html")

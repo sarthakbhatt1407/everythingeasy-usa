@@ -1,3 +1,7 @@
+<?php
+require __DIR__ . '/config.php';
+$companyInfo = getCompanyInfo();
+?>
 <!doctype html>
 <html lang="en">
   <head>
@@ -130,8 +134,8 @@
 
   <body>
     <!-- Navbar Container -->
-    <div id="navbar-container"></div>
-    <script src="js/navigation.js"></script>
+    <?php include "navbar.php"; ?>
+    <!-- <script src="js/navigation.js"></script> -->
     <main style="margin-top: 30px">
       <!-- Page Header -->
       <section class="page-header">
@@ -486,7 +490,8 @@
     </main>
 
     <!-- Footer Container -->
-    <div id="footer-container"></div>
+    <!-- <div id="footer-container"></div> -->
+    <?php include "footer.php"; ?>
 
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
