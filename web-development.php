@@ -2,18 +2,69 @@
 require __DIR__ . '/config.php';
 $companyInfo = getCompanyInfo();
 
-$rawLocation = trim((string) ($_GET['location'] ?? ''));
-$rawLocation = preg_replace('/[^a-zA-Z0-9\s,\-]/', '', $rawLocation) ?? '';
-$locationName = $rawLocation !== '' ? $rawLocation : 'USA';
-$locationPhrase = strcasecmp($locationName, 'USA') === 0 ? 'in the USA' : 'in ' . $locationName;
-$locationLabel = strcasecmp($locationName, 'USA') === 0 ? 'USA' : $locationName;
+// Fetch location from URL (by slug or location_name)
+$rawSlug = trim((string) ($_GET['slug'] ?? $_GET['location_name'] ?? ''));
+$rawSlug = preg_replace('/[^a-zA-Z0-9\-]/', '', $rawSlug);
+
+$locationData = [
+  'location_name' => 'USA',
+  'city_name' => '',
+  'state' => '',
+  'meta_title' => '',
+  'meta_description' => '',
+  'meta_keyword' => '',
+  'og_title' => '',
+];
+
+// Query locations table if slug provided
+if ($rawSlug !== '' && dbTableExists('locations')) {
+  try {
+    $stmt = getDbConnection()->prepare('SELECT `location_name`, `city_name`, `state`, `meta_title`, `meta_description`, `meta_keyword`, `og_title` FROM `locations` WHERE `slug` = :slug LIMIT 1');
+    $stmt->execute([':slug' => $rawSlug]);
+    $row = $stmt->fetch();
+    if (is_array($row)) {
+      $locationData = array_merge($locationData, $row);
+    }
+  } catch (Throwable $t) {
+    // Fallback to USA if query fails
+  }
+}
+
+// Build location labels with city_name, state combination
+$locationName = trim((string) ($locationData['location_name'] ?? 'USA'));
+$cityName = trim((string) ($locationData['city_name'] ?? ''));
+$state = trim((string) ($locationData['state'] ?? ''));
+
+// Build location phrase for SEO
+if ($cityName !== '' && $state !== '') {
+  $locationLabel = $cityName . ', ' . $state;
+  $locationPhrase = 'in ' . $locationLabel;
+} elseif ($cityName !== '') {
+  $locationLabel = $cityName;
+  $locationPhrase = 'in ' . $locationLabel;
+} elseif ($state !== '') {
+  $locationLabel = $state;
+  $locationPhrase = 'in ' . $locationLabel;
+} else {
+  $locationLabel = 'USA';
+  $locationPhrase = 'in the USA';
+}
+
+// Use custom meta tags and values directly from database
+$metaTitle = trim((string) ($locationData['meta_title'] ?? ''));
+$metaDescription = trim((string) ($locationData['meta_description'] ?? ''));
+$metaKeyword = trim((string) ($locationData['meta_keyword'] ?? ''));
+$ogTitle = trim((string) ($locationData['og_title'] ?? ''));
 
 $serviceSlug = 'web-development';
 $serviceQuery = 'SELECT * FROM `services` WHERE `slug` = :slug LIMIT 1';
 $serviceQueryParams = [':slug' => $serviceSlug];
 
+// Use meta_title as h1 if available, otherwise generate from location
+$h1Title = $metaTitle !== '' ? $metaTitle : 'Web Development Services ' . $locationPhrase;
+
 $serviceInfo = [
-  'title' => 'Web Development Services ' . $locationPhrase,
+  'title' => $h1Title,
 ];
 
 if (isset($_GET['print_query'])) {
@@ -21,7 +72,8 @@ if (isset($_GET['print_query'])) {
   echo "Query:\n" . $serviceQuery . "\n\n";
   echo "Params:\n";
   print_r($serviceQueryParams);
-  echo "\nLocation:\n" . $locationLabel . "\n";
+  echo "\nLocation Data:\n";
+  print_r($locationData);
   exit;
 }
 
@@ -36,28 +88,28 @@ if (isset($_GET['print_query'])) {
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="theme-color" content="#0066cc" />
-  <title><?php echo e('Web Development Services in ' . $locationLabel . ' - EverythingEasy Technology'); ?></title>
+  <title><?php echo e($metaTitle); ?></title>
   <meta name="description"
-    content="<?php echo e('Professional web development services in ' . $locationLabel . '. Custom websites, e-commerce solutions, and responsive design for your business growth.'); ?>" />
+    content="<?php echo e($metaDescription); ?>" />
   <meta name="keywords"
-    content="<?php echo e('web development ' . $locationLabel . ', web design ' . $locationLabel . ', custom websites, e-commerce development'); ?>" />
+    content="<?php echo e($metaKeyword); ?>" />
   <meta name="author" content="EverythingEasy" />
   <meta name="robots" content="index, follow" />
   <meta name="googlebot" content="index, follow" />
-  <link rel="canonical" href="https://everythingeasy-usa.com/web-development.html" />
+  <link rel="canonical" href="https://everythingeasy-usa.com/web-development.php" />
 
   <!-- Open Graph / Social -->
-  <meta property="og:title" content="<?php echo e('Professional Web Development Services in ' . $locationLabel . ' - EverythingEasy Technology'); ?>" />
+  <meta property="og:title" content="<?php echo e($ogTitle !== '' ? $ogTitle : $metaTitle); ?>" />
   <meta property="og:description"
-    content="<?php echo e('Get expert web development services in ' . $locationLabel . ' with modern technologies and proven results.'); ?>" />
+    content="<?php echo e($metaDescription); ?>" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="EverythingEasy Technology USA" />
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="<?php echo e('Professional Web Development Services in ' . $locationLabel . ' - EverythingEasy Technology'); ?>" />
+  <meta name="twitter:title" content="<?php echo e($ogTitle !== '' ? $ogTitle : $metaTitle); ?>" />
   <meta name="twitter:description"
-    content="<?php echo e('Get expert web development services in ' . $locationLabel . ' with modern technologies and proven results.'); ?>" />
+    content="<?php echo e($metaDescription); ?>" />
 
   <!-- Mobile Meta -->
   <meta name="format-detection" content="telephone=no" />
@@ -322,7 +374,7 @@ if (isset($_GET['print_query'])) {
 </head>
 
 <body>
-  <?php include "navbar.php"; ?>
+  <?php include __DIR__ . '/navbar.php'; ?>
   <!-- <script src="js/navigation.js"></script> -->
 
   <!-- Hero Section -->
@@ -338,11 +390,10 @@ if (isset($_GET['print_query'])) {
               <?php echo ((string) ($serviceInfo['title'] ?? '')) ?>
             </h1>
             <p class="lead mb-4 text-white" style="font-size: 1.35rem">
-              Unleash the power of professional website development and take
-              your business to the next level. Our expert team specializes in
-              creating stunning, responsive websites that drive results. With
-              10+ years of experience, we help businesses <?php echo e($locationPhrase); ?>
-              establish a strong online presence and dominate local search results.
+              Grow your business with a professional website built for performance and usability.
+              Our team creates responsive, conversion-focused websites for businesses <?php echo e($locationPhrase); ?>.
+              With 10+ years of experience, we focus on practical solutions that improve visibility,
+              customer trust, and long-term growth.
             </p>
           </div>
         </div>
@@ -358,7 +409,7 @@ if (isset($_GET['print_query'])) {
               <h4 class="fw-bold mb-3 text-center" style="color: #1e3c72; font-size: 1.25rem">
                 Get a Free Quote
               </h4>
-              <form id="heroQuoteForm" class="hero-quote-form" action="form-submit.php" method="post">
+              <form id="heroQuoteForm" class="hero-quote-form" action="/form-submit.php" method="post">
                 <input type="hidden" name="redirect" value="web-development.php" />
                 <input type="hidden" name="source_page" value="web-development" />
                 <input type="hidden" name="form_type" value="hero_quote" />
@@ -479,12 +530,8 @@ if (isset($_GET['print_query'])) {
       <div class="text-center mb-5">
         <h2 class="fw-bold">Case Studies - Our Clients' Success Stories</h2>
         <p class="lead text-muted">
-          We specialize in delivering exceptional and affordable website
-          development services that drive significant growth for our clients
-          nationwide. With extensive experience across various industries
-          including hospitality, e-commerce, education, and local businesses,
-          we have a proven track record of helping businesses achieve their
-          online goals.
+          We deliver reliable website solutions that help businesses grow. From e-commerce and healthcare
+          to education and local services, our projects are built to improve speed, usability, and results.
         </p>
       </div>
 
@@ -502,8 +549,8 @@ if (isset($_GET['print_query'])) {
                 EC
               </div>
               <div class="ms-3">
-                <h5 class="mb-1">E-Commerce Platform</h5>
-                <p class="text-muted mb-0">Online Retail Solutions</p>
+                <h5 class="mb-1">E-Commerce Platform Development</h5>
+                <p class="text-muted mb-0">Custom Online Retail Solutions & Shopping Cart Integration</p>
               </div>
             </div>
             <table class="results-table">
@@ -527,7 +574,7 @@ if (isset($_GET['print_query'])) {
                   <td><span class="badge-success">↑ 200%</span></td>
                 </tr>
                 <tr>
-                  <td>Security Incidents</td>
+                  <td>Security & SSL Protection</td>
                   <td><span class="badge-success">↓ 95%</span></td>
                 </tr>
               </tbody>
@@ -549,7 +596,7 @@ if (isset($_GET['print_query'])) {
               </div>
               <div class="ms-3">
                 <h5 class="mb-1">Healthcare Management System</h5>
-                <p class="text-muted mb-0">Digital Health Solutions</p>
+                <p class="text-muted mb-0">HIPAA-Compliant Digital Health & Telemedicine Solutions</p>
               </div>
             </div>
             <table class="results-table">
@@ -569,11 +616,11 @@ if (isset($_GET['print_query'])) {
                   <td><span class="badge-success">90%</span></td>
                 </tr>
                 <tr>
-                  <td>Data Security Compliance</td>
+                  <td>HIPAA Compliance</td>
                   <td><span class="badge-success">100%</span></td>
                 </tr>
                 <tr>
-                  <td>Staff Productivity</td>
+                  <td>Staff Productivity Gain</td>
                   <td><span class="badge-success">↑ 65%</span></td>
                 </tr>
               </tbody>
@@ -594,8 +641,8 @@ if (isset($_GET['print_query'])) {
                 FT
               </div>
               <div class="ms-3">
-                <h5 class="mb-1">FinTech Application</h5>
-                <p class="text-muted mb-0">Financial Technology Platform</p>
+                <h5 class="mb-1">FinTech Web Application</h5>
+                <p class="text-muted mb-0">Secure Payment Gateway & Financial Technology Platform</p>
               </div>
             </div>
             <table class="results-table">
@@ -615,11 +662,11 @@ if (isset($_GET['print_query'])) {
                   <td><span class="badge-success">↓ 80%</span></td>
                 </tr>
                 <tr>
-                  <td>User Authentication</td>
-                  <td><span class="badge-success">Multi-Factor</span></td>
+                  <td>Multi-Factor Authentication</td>
+                  <td><span class="badge-success">Enabled</span></td>
                 </tr>
                 <tr>
-                  <td>Scalability</td>
+                  <td>Platform Scalability</td>
                   <td><span class="badge-success">↑ 300%</span></td>
                 </tr>
               </tbody>
@@ -640,8 +687,8 @@ if (isset($_GET['print_query'])) {
                 ED
               </div>
               <div class="ms-3">
-                <h5 class="mb-1">Education Portal</h5>
-                <p class="text-muted mb-0">E-Learning Platform</p>
+                <h5 class="mb-1">Education Portal Development</h5>
+                <p class="text-muted mb-0">Responsive E-Learning Platform with Video Streaming</p>
               </div>
             </div>
             <table class="results-table">
@@ -653,7 +700,7 @@ if (isset($_GET['print_query'])) {
               </thead>
               <tbody>
                 <tr>
-                  <td>Concurrent Users</td>
+                  <td>Concurrent Users Support</td>
                   <td><span class="badge-success">10,000+</span></td>
                 </tr>
                 <tr>
@@ -661,11 +708,11 @@ if (isset($_GET['print_query'])) {
                   <td><span class="badge-success">4K Ready</span></td>
                 </tr>
                 <tr>
-                  <td>Mobile Accessibility</td>
+                  <td>Mobile & Responsive Design</td>
                   <td><span class="badge-success">Cross-Platform</span></td>
                 </tr>
                 <tr>
-                  <td>Content Delivery</td>
+                  <td>Content Delivery Performance</td>
                   <td><span class="badge-success">↑ 120%</span></td>
                 </tr>
               </tbody>
@@ -692,12 +739,10 @@ if (isset($_GET['print_query'])) {
         <div class="col-lg-4 col-md-6">
           <div class="help-card">
             <i class="fas fa-shield-alt"></i>
-            <h6>Security & Compliance</h6>
+            <h6>Security & Compliance for <?php echo e($locationLabel); ?></h6>
             <p>
-              We prioritize your website security with industry-leading
-              practices. Our websites are built with enterprise-grade security
-              protocols, SSL certificates, and regular security updates to
-              protect your business and customer data <?php echo e($locationPhrase); ?>.
+              We follow strong security practices, including SSL setup and regular updates,
+              to protect your business and customer data <?php echo e($locationPhrase); ?>.
             </p>
           </div>
         </div>
@@ -705,12 +750,10 @@ if (isset($_GET['print_query'])) {
         <div class="col-lg-4 col-md-6">
           <div class="help-card">
             <i class="fas fa-chart-line"></i>
-            <h6>Proven Track Record</h6>
+            <h6>Proven Track Record in <?php echo e($locationLabel); ?></h6>
             <p>
-              With over 10 years of experience and 500+ successful projects,
-              we have established partnerships with leading companies across
-              <?php echo e($locationLabel); ?>. Our portfolio speaks for our expertise and commitment
-              to excellence in website development.
+              With 10+ years of experience and 500+ completed projects, we deliver websites
+              that are fast, stable, and aligned with business goals.
             </p>
           </div>
         </div>
@@ -718,12 +761,10 @@ if (isset($_GET['print_query'])) {
         <div class="col-lg-4 col-md-6">
           <div class="help-card">
             <i class="fas fa-users"></i>
-            <h6>Dedicated Support Team</h6>
+            <h6>Dedicated Support Team for <?php echo e($locationLabel); ?></h6>
             <p>
-              Our expert team provides 24/7 support to ensure your website
-              runs smoothly. We believe in building long-term relationships
-              and being available whenever you need us in <?php echo e($locationLabel); ?> for updates,
-              maintenance, or emergency support.
+              Our support team is available for updates, maintenance, and urgent fixes,
+              so your website keeps running smoothly after launch.
             </p>
           </div>
         </div>
@@ -731,12 +772,10 @@ if (isset($_GET['print_query'])) {
         <div class="col-lg-4 col-md-6">
           <div class="help-card">
             <i class="fas fa-cogs"></i>
-            <h6>Customized Website Solutions</h6>
+            <h6>Customized Website Solutions in <?php echo e($locationLabel); ?></h6>
             <p>
-              Every business is unique, and so are our websites. We take time
-              to understand your specific requirements and create tailored web
-              solutions that align with your business goals and budget
-              constraints in <?php echo e($locationLabel); ?>.
+              Every business is different, so we build custom websites based on your goals,
+              audience, and budget.
             </p>
           </div>
         </div>
@@ -744,12 +783,10 @@ if (isset($_GET['print_query'])) {
         <div class="col-lg-4 col-md-6">
           <div class="help-card">
             <i class="fas fa-rocket"></i>
-            <h6>Modern Web Technologies</h6>
+            <h6>Modern Web Technologies for <?php echo e($locationLabel); ?></h6>
             <p>
-              Stay ahead of the competition with the latest web technologies.
-              We use responsive design, fast loading speeds, SEO optimization,
-              and modern frameworks to build scalable, future-proof websites
-              for your business <?php echo e($locationPhrase); ?>.
+              We use modern, dependable tools to build responsive websites with fast load times
+              and clean structure that supports long-term SEO.
             </p>
           </div>
         </div>
@@ -757,12 +794,10 @@ if (isset($_GET['print_query'])) {
         <div class="col-lg-4 col-md-6">
           <div class="help-card">
             <i class="fas fa-handshake"></i>
-            <h6>Transparent Communication</h6>
+            <h6>Transparent Communication in <?php echo e($locationLabel); ?></h6>
             <p>
-              We believe in complete transparency. Regular progress reports,
-              clear documentation, and open communication channels ensure
-              you're always informed about your website development status in <?php echo e($locationLabel); ?> and
-              can provide feedback at any stage.
+              You get clear timelines, regular updates, and direct communication throughout the project.
+              We keep the process simple and collaborative from start to finish.
             </p>
           </div>
         </div>
@@ -778,22 +813,18 @@ if (isset($_GET['print_query'])) {
           Why Choose EverythingEasy Technology for Web Development in <?php echo e($locationLabel); ?>
         </h2>
         <p class="lead text-muted">
-          Finding the right website development partner can make or break your
-          online success. Here's why businesses across <?php echo e($locationLabel); ?> choose
-          EverythingEasy Technology.
+          The right development partner should combine technical quality, business understanding,
+          and dependable support. Here's why businesses choose us.
         </p>
       </div>
 
       <div class="row">
         <div class="col-lg-6">
           <div class="choose-card">
-            <h5><i class="fas fa-trophy me-2"></i>Industry Expertise</h5>
+            <h5><i class="fas fa-trophy me-2"></i>Industry Expertise for <?php echo e($locationLabel); ?> Businesses</h5>
             <p class="mb-0">
-              Our team comprises certified web development professionals with
-              deep understanding of various markets and industries. We stay
-              updated with the latest web trends to provide you with
-              cutting-edge solutions that give your business a competitive
-              advantage.
+              Our team has hands-on experience across multiple industries and builds websites
+              that match real business requirements.
             </p>
           </div>
         </div>
@@ -801,26 +832,20 @@ if (isset($_GET['print_query'])) {
         <div class="col-lg-6">
           <div class="choose-card">
             <h5>
-              <i class="fas fa-dollar-sign me-2"></i>Affordable Web
-              Development
+              <i class="fas fa-dollar-sign me-2"></i>Affordable Web Development Solutions in <?php echo e($locationLabel); ?>
             </h5>
             <p class="mb-0">
-              We offer premium website development services at competitive
-              prices. Our flexible pricing models and efficient development
-              processes ensure you get maximum value for your investment
-              without compromising on quality.
+              Our pricing is transparent and flexible, so you can choose a package that fits
+              your budget without sacrificing quality.
             </p>
           </div>
         </div>
 
         <div class="col-lg-6">
           <div class="choose-card">
-            <h5><i class="fas fa-clock me-2"></i>On-Time Delivery</h5>
+            <h5><i class="fas fa-clock me-2"></i>On-Time Delivery for <?php echo e($locationLabel); ?> Projects</h5>
             <p class="mb-0">
-              We understand the importance of deadlines for your business. Our
-              agile methodology and experienced project managers ensure timely
-              delivery of your website projects without sacrificing quality or
-              functionality.
+              We follow a structured workflow and clear milestones to deliver projects on time.
             </p>
           </div>
         </div>
@@ -828,25 +853,21 @@ if (isset($_GET['print_query'])) {
         <div class="col-lg-6">
           <div class="choose-card">
             <h5>
-              <i class="fas fa-sync-alt me-2"></i>Ongoing Website Maintenance
+              <i class="fas fa-sync-alt me-2"></i>Ongoing Website Maintenance & Support in <?php echo e($locationLabel); ?>
             </h5>
             <p class="mb-0">
-              Our relationship doesn't end at website launch. We provide
-              comprehensive maintenance and support services to ensure your
-              website continues to perform optimally and evolves with your
-              business needs.
+              After launch, we continue with maintenance, updates, and support so your site
+              stays secure and up to date.
             </p>
           </div>
         </div>
 
         <div class="col-lg-6">
           <div class="choose-card">
-            <h5><i class="fas fa-star me-2"></i>Client Testimonials</h5>
+            <h5><i class="fas fa-star me-2"></i>Client Testimonials & Success Stories</h5>
             <p class="mb-0">
-              Don't just take our word for it. Our clients' success stories
-              and testimonials reflect our commitment to excellence. We take
-              pride in the long-term partnerships we've built based on trust
-              and results.
+              Our client feedback reflects consistent delivery, clear communication,
+              and long-term working relationships.
             </p>
           </div>
         </div>
@@ -854,13 +875,11 @@ if (isset($_GET['print_query'])) {
         <div class="col-lg-6">
           <div class="choose-card">
             <h5>
-              <i class="fas fa-laptop-code me-2"></i>Modern Web Technologies
+              <i class="fas fa-laptop-code me-2"></i>Modern Web Technologies & Best Practices
             </h5>
             <p class="mb-0">
-              We work with the latest and most reliable web technologies
-              including React, WordPress, PHP, HTML5, CSS3, and more. Our
-              tech-agnostic approach ensures we choose the right tools for
-              your specific website requirements.
+              We use reliable technologies and select tools based on your project needs,
+              performance goals, and scalability.
             </p>
           </div>
         </div>
@@ -885,129 +904,104 @@ if (isset($_GET['print_query'])) {
         <div class="col-lg-8 mx-auto">
           <div class="faq-item" onclick="toggleFaq(this)">
             <h6>
-              How much does website development cost?
+              How much does website development cost in <?php echo e($locationLabel); ?>?
               <i class="fas fa-chevron-down"></i>
             </h6>
             <div class="faq-answer">
               <p>
-                The cost of website development varies depending on project
-                scope, complexity, features, and design requirements. We offer
-                flexible pricing models from basic business websites to
-                advanced e-commerce platforms. After understanding your
-                requirements, we provide a detailed quote with transparent
-                pricing and no hidden costs.
+                Pricing depends on scope, features, and design requirements. After understanding
+                your needs, we share a clear quote with transparent cost breakdown.
               </p>
             </div>
           </div>
 
           <div class="faq-item" onclick="toggleFaq(this)">
             <h6>
-              How long does it take to build a website?
+              How long does it take to build a website in <?php echo e($locationLabel); ?>?
               <i class="fas fa-chevron-down"></i>
             </h6>
             <div class="faq-answer">
               <p>
-                Website development timelines depend on complexity and
-                requirements. A simple business website might take 2-4 weeks,
-                while e-commerce or custom applications can take 6-12 weeks.
-                We use agile methodology for iterative delivery, ensuring you
-                see progress throughout the development cycle.
+                Timelines depend on complexity. A basic business website usually takes 2-4 weeks,
+                while larger custom builds can take 6-12 weeks.
               </p>
             </div>
           </div>
 
           <div class="faq-item" onclick="toggleFaq(this)">
             <h6>
-              What technologies do you use for website development?
+              What modern technologies do you use for web development in <?php echo e($locationLabel); ?>?
               <i class="fas fa-chevron-down"></i>
             </h6>
             <div class="faq-answer">
               <p>
-                We work with a wide range of modern web technologies including
-                WordPress, React, HTML5, CSS3, JavaScript, PHP, and responsive
-                frameworks like Bootstrap. We also specialize in e-commerce
-                platforms like WooCommerce and Shopify. We choose technologies
-                based on your specific needs and budget.
+                We work with WordPress, React, PHP, HTML/CSS/JS, and modern frameworks.
+                The final stack is chosen based on your goals, budget, and project type.
               </p>
             </div>
           </div>
 
           <div class="faq-item" onclick="toggleFaq(this)">
             <h6>
-              Do you provide ongoing support after website launch?
+              Do you provide ongoing support after website launch in <?php echo e($locationLabel); ?>?
               <i class="fas fa-chevron-down"></i>
             </h6>
             <div class="faq-answer">
               <p>
-                Yes! We offer comprehensive post-launch support and
-                maintenance services for all our clients. This includes bug
-                fixes, security updates, content updates, performance
-                optimization, and 24/7 technical support. We believe in
-                building long-term partnerships with our clients.
+                Yes. We provide post-launch support including bug fixes, updates, performance
+                improvements, and routine maintenance.
               </p>
             </div>
           </div>
 
           <div class="faq-item" onclick="toggleFaq(this)">
             <h6>
-              Will my website be mobile-friendly and SEO optimized?
+              Will my website be mobile-friendly and SEO optimized in <?php echo e($locationLabel); ?>?
               <i class="fas fa-chevron-down"></i>
             </h6>
             <div class="faq-answer">
               <p>
-                Absolutely! All our websites are fully responsive and
-                mobile-friendly, working perfectly on all devices. We also
-                include basic SEO optimization (meta tags, structured data,
-                fast loading, mobile optimization) to help your business rank
-                better in search engines.
+                Yes. All websites are mobile-friendly and include core SEO essentials like
+                clean structure, metadata setup, and performance optimization.
               </p>
             </div>
           </div>
 
           <div class="faq-item" onclick="toggleFaq(this)">
             <h6>
-              How do you ensure website security?
+              How do you ensure website security for businesses in <?php echo e($locationLabel); ?>?
               <i class="fas fa-chevron-down"></i>
             </h6>
             <div class="faq-answer">
               <p>
-                Security is our top priority. We implement SSL certificates,
-                secure hosting, regular backups, security plugins, firewall
-                protection, and regular security updates. All our websites
-                follow industry-standard security practices to protect your
-                business and customer data.
+                We use SSL, secure configurations, backups, and regular updates to keep your
+                website and customer data protected.
               </p>
             </div>
           </div>
 
           <div class="faq-item" onclick="toggleFaq(this)">
             <h6>
-              Do you work with small businesses?
+              Do you work with small businesses in <?php echo e($locationLabel); ?>?
               <i class="fas fa-chevron-down"></i>
             </h6>
             <div class="faq-answer">
               <p>
-                Yes! We work with businesses of all sizes – from small local
-                shops to large enterprises. For small businesses, we offer
-                affordable starter websites, scalable solutions, and
-                cost-effective packages. We understand the unique needs of
-                growing businesses.
+                Yes, we work with startups, small businesses, and growing teams. We offer
+                scalable packages so you can start lean and expand over time.
               </p>
             </div>
           </div>
 
           <div class="faq-item" onclick="toggleFaq(this)">
             <h6>
-              What is your website development process?
+              What is your website development process for <?php echo e($locationLabel); ?>?
               <i class="fas fa-chevron-down"></i>
             </h6>
             <div class="faq-answer">
               <p>
-                We follow a proven process: Consultation & Planning → Design &
-                Wireframing → Development → Content Integration → Testing & QA
-                → Launch → Training & Support. You'll have regular updates and
-                opportunities for feedback throughout. We use project
-                management tools to keep you informed at every stage.
+                Our process includes discovery, planning, design, development, testing, launch,
+                and ongoing support, with updates shared at each stage.
               </p>
             </div>
           </div>
@@ -1027,38 +1021,191 @@ if (isset($_GET['print_query'])) {
       </div>
 
       <div class="service-grid">
-        <a href="services.html" class="service-card-item">
+        <a href="/services.php" class="service-card-item">
           <i class="fas fa-laptop-code"></i>
           <h6>Web Development</h6>
         </a>
-        <a href="services.html" class="service-card-item">
+        <a href="/services.php" class="service-card-item">
           <i class="fas fa-mobile-alt"></i>
           <h6>Mobile App Development</h6>
         </a>
-        <a href="services.html" class="service-card-item">
+        <a href="/services.php" class="service-card-item">
           <i class="fas fa-cloud"></i>
           <h6>Cloud Solutions</h6>
         </a>
-        <a href="services.html" class="service-card-item">
+        <a href="/services.php" class="service-card-item">
           <i class="fas fa-shopping-cart"></i>
           <h6>E-Commerce Development</h6>
         </a>
-        <a href="services.html" class="service-card-item">
+        <a href="/services.php" class="service-card-item">
           <i class="fas fa-brain"></i>
           <h6>AI & Machine Learning</h6>
         </a>
-        <a href="services.html" class="service-card-item">
+        <a href="/services.php" class="service-card-item">
           <i class="fas fa-server"></i>
           <h6>DevOps Services</h6>
         </a>
-        <a href="services.html" class="service-card-item">
+        <a href="/services.php" class="service-card-item">
           <i class="fas fa-shield-alt"></i>
           <h6>Cybersecurity Solutions</h6>
         </a>
-        <a href="services.html" class="service-card-item">
+        <a href="/services.php" class="service-card-item">
           <i class="fas fa-paint-brush"></i>
           <h6>UI/UX Design</h6>
         </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Web Development Features & Technical Excellence Section -->
+  <section class="web-dev-features" style="padding: 80px 0; background: #f9f9f9;">
+    <div class="container">
+      <div class="text-center mb-5">
+        <h2 class="fw-bold">Web Development Features & Solutions That Drive Business Results</h2>
+        <p class="lead text-muted">
+          Our professional web development services and custom website solutions combine technical excellence with strategic business approach. 
+          Every responsive website we build for businesses in <?php echo e($locationLabel); ?> includes essential web development features, 
+          modern design elements, and advanced optimization techniques that improve search engine visibility, user experience design, 
+          mobile compatibility, and conversion rates for sustainable growth.
+        </p>
+      </div>
+
+      <div class="row g-4">
+        <!-- Feature 1: Performance Optimization -->
+        <div class="col-lg-6">
+          <div class="feature-box" style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+            <h5 class="fw-bold mb-3" style="color: #004da6;">
+              <i class="fas fa-tachometer-alt me-2"></i>Performance Optimization & Fast Load Times
+            </h5>
+            <p>
+              Website speed is crucial for both user experience and SEO rankings. Our professional web development services 
+              prioritize performance optimization through code efficiency, image compression, advanced caching strategies, 
+              CDN integration, and content delivery optimization. Fast-loading business websites reduce bounce rates and improve conversion rates, 
+              which directly impacts your bottom line and search engine rankings. Our responsive website design ensures optimal performance 
+              across all devices and browsers for maximum user engagement.
+            </p>
+          </div>
+        </div>
+
+        <!-- Feature 2: SEO Architecture -->
+        <div class="col-lg-6">
+          <div class="feature-box" style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+            <h5 class="fw-bold mb-3" style="color: #004da6;">
+              <i class="fas fa-search me-2"></i>SEO-Optimized Website Architecture & Ranking Strategy
+            </h5>
+            <p>
+              Technical search engine optimization starts with solid website architecture and foundation. Our custom web development services 
+              include clean code structure, proper heading hierarchy, semantic HTML markup, comprehensive meta tags optimization, XML sitemaps, 
+              robots.txt configuration, canonical tag implementation, and schema markup. These technical SEO best practices ensure 
+              your custom website is easily discoverable by search engines and ranks for relevant keywords and organic search terms in your industry. 
+              We optimize web development for maximum search visibility and organic traffic growth.
+            </p>
+          </div>
+        </div>
+
+        <!-- Feature 3: Mobile Responsiveness -->
+        <div class="col-lg-6">
+          <div class="feature-box" style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+            <h5 class="fw-bold mb-3" style="color: #004da6;">
+              <i class="fas fa-mobile-alt me-2"></i>Mobile-Responsive & Cross-Device Responsive Design
+            </h5>
+            <p>
+              Mobile-first responsive design is no longer optional in modern web development. Every professional website we develop features fully responsive 
+              design across smartphones, tablets, and desktop devices. Mobile responsiveness is a major ranking factor in Google searches and other search engines, 
+              and with over 60% of web traffic coming from mobile devices, our responsive website solutions ensure 
+              you capture customers on all devices and platforms. Our responsive website design enhances user experience across all screen sizes 
+              and improves your website's organic search performance.
+            </p>
+          </div>
+        </div>
+
+        <!-- Feature 4: Conversion Optimization -->
+        <div class="col-lg-6">
+          <div class="feature-box" style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+            <h5 class="fw-bold mb-3" style="color: #004da6;">
+              <i class="fas fa-bullseye me-2"></i>Conversion Rate Optimization & Strategic CTA Design
+            </h5>
+            <p>
+              A beautiful custom website means nothing if visitors don't take action or convert. Our professional web development services include 
+              strategic placement of high-converting call-to-action buttons, optimized contact forms, clear value propositions, 
+              intuitive user flow optimization, and landing page design. We apply proven conversion rate optimization best practices and web development 
+              strategies to transform your website traffic into qualified leads and paying customers. Our responsive website solutions 
+              are designed for maximum conversions and business growth.
+            </p>
+          </div>
+        </div>
+
+        <!-- Feature 5: Database & Backend -->
+        <div class="col-lg-6">
+          <div class="feature-box" style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+            <h5 class="fw-bold mb-3" style="color: #004da6;">
+              <i class="fas fa-database me-2"></i>Robust Database & Advanced Backend Infrastructure
+            </h5>
+            <p>
+              Professional website development and custom web applications require solid, scalable backend infrastructure and architecture. We build powerful custom web applications 
+              with efficient database design, secure server-side processing, RESTful API integration capabilities, microservices architecture, and cloud infrastructure. 
+              Our advanced backend web development solutions support growing businesses with reliable, enterprise-grade server infrastructure, 
+              load balancing, and redundancy that handles high traffic increases, complex business operations, and data-intensive applications.
+            </p>
+          </div>
+        </div>
+
+        <!-- Feature 6: Security & Compliance -->
+        <div class="col-lg-6">
+          <div class="feature-box" style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+            <h5 class="fw-bold mb-3" style="color: #004da6;">
+              <i class="fas fa-lock me-2"></i>Website Security, SSL & Advanced Data Protection Standards
+            </h5>
+            <p>
+              Website security and data protection are paramount and protect your business, employees, and customers. All our custom websites and web applications include 
+              enterprise-grade SSL/TLS encryption, secure authentication systems, two-factor authentication, GDPR compliance, CCPA compliance, secure payment gateway integration, 
+              DDoS protection, web application firewalls, and comprehensive security audits. Website security and protection is not an afterthought—it's built into every stage 
+              of our professional web development process and custom web application development. Our security-first approach to web development ensures your business website 
+              and customer data remain protected.
+            </p>
+          </div>
+        </div>
+
+        <!-- Feature 7: Analytics & Tracking -->
+        <div class="col-lg-6">
+          <div class="feature-box" style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+            <h5 class="fw-bold mb-3" style="color: #004da6;">
+              <i class="fas fa-chart-bar me-2"></i>Analytics Integration & Advanced Performance Tracking
+            </h5>
+            <p>
+              Data-driven business decisions require proper website analytics and tracking infrastructure. Our professional web development includes 
+              advanced Google Analytics setup, Google Search Console integration, comprehensive event tracking, detailed conversion funnel monitoring, 
+              heatmap analysis, user session recording, and custom advanced reporting dashboards. These analytics and tracking tools measure your website 
+              performance, user behavior patterns, business metrics, and ROI so you understand how your web development investment is delivering results. 
+              Our web development solutions are built with analytics and measurement in mind from day one.
+            </p>
+          </div>
+        </div>
+
+        <!-- Feature 8: Scalability & Maintenance -->
+        <div class="col-lg-6">
+          <div class="feature-box" style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+            <h5 class="fw-bold mb-3" style="color: #004da6;">
+              <i class="fas fa-expand me-2"></i>Scalability, Long-Term Maintenance & Growth Support
+            </h5>
+            <p>
+              Your professional website should scale and grow with your business operations. We build highly scalable custom websites and web applications that handle increased traffic loads, 
+              support new business features, and integrate seamlessly with additional tools and systems as your business operations expand. Our comprehensive website maintenance and support services 
+              ensure ongoing updates, critical security patches, performance monitoring, continuous optimization, and technical support 
+              to keep your business website competitive in search results and functioning flawlessly for years to come. We treat web development as a long-term partnership.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-center mt-5">
+        <h4 class="fw-bold mb-3">Professional Web Development Best Practices for Digital Success & Growth</h4>
+        <p class="text-muted mb-4" style="max-width: 700px; margin-left: auto; margin-right: auto;">
+          These web development features and technical excellence standards form the foundation of modern, successful website development. 
+          Whether you need a responsive corporate website, scalable e-commerce platform, custom web application, 
+          progressive web app, or service-based business website, our professional web development services apply these proven best practices 
+          and industry standards to ensure your web development project succeeds in delivering both exceptional user experience and measurable business objectives for growth and profitability.
+        </p>
       </div>
     </div>
   </section>
@@ -1076,7 +1223,7 @@ if (isset($_GET['print_query'])) {
           </p>
         </div>
         <div class="col-lg-4 text-lg-end">
-          <a href="contact.html" class="btn btn-primary btn-lg">
+          <a href="/contact.php" class="btn btn-primary btn-lg">
             <i class="fas fa-envelope me-2"></i>Contact Us Now
           </a>
         </div>
@@ -1101,7 +1248,7 @@ if (isset($_GET['print_query'])) {
     </div>
   </section>
 
-  <?php include "footer.php"; ?>
+  <?php include __DIR__ . '/footer.php'; ?>
 
   <!-- Bootstrap JS -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
@@ -1120,26 +1267,16 @@ if (isset($_GET['print_query'])) {
         if (
           href &&
           (href === currentPage ||
-            (currentPage === "" && href === "index.html") ||
-            (!currentPage && href === "index.html"))
+            (currentPage === "" && href === "index.php") ||
+            (!currentPage && href === "index.php"))
         ) {
           link.classList.add("active");
         }
       });
     }
 
-    fetch("navbar.html")
-      .then((r) => r.text())
-      .then((html) => {
-        document.getElementById("navbar-container").innerHTML = html;
-        setActiveNavLink();
-      });
-
-    fetch("footer.html")
-      .then((r) => r.text())
-      .then((html) => {
-        document.getElementById("footer-container").innerHTML = html;
-      });
+    // Navbar and footer are already included via PHP, no need to fetch
+    setActiveNavLink();
 
     function toggleFaq(element) {
       element.classList.toggle("active");
